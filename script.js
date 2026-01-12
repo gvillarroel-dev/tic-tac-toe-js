@@ -122,31 +122,78 @@ const GameRules = (function () {
 	};
 })();
 
+const GameController = (function (deps) {
+	let currentPlayer = null;
+	let gameStatus = null;
+
+	function startGame(initialPlayer) {
+		if (initialPlayer !== "X" && initialPlayer !== "O") {
+			currentPlayer = "X";
+		} else {
+			currentPlayer = initialPlayer;
+		}
+
+		deps.board.resetBoard();
+		gameStatus = "ongoing";
+	}
+
+	function changeTurn() {
+		currentPlayer = currentPlayer === "X" ? "O" : "X";
+		return currentPlayer;
+	}
+
+	function playMove(index) {
+		if (gameStatus !== "ongoing") {
+			return {
+				ok: false,
+				reason: "game-over",
+			};
+		}
+
+		const placed = deps.board.placeMark(index, currentPlayer);
+		if (!placed) {
+			return {
+				ok: false,
+				reason: "invalid-move",
+			};
+		}
+
+		const board = deps.board.getBoard();
+		const result = deps.rules.getGameStatus(board);
+		if (result.status === "ongoing") {
+			changeTurn();
+		} else {
+			gameStatus = result.status;
+		}
+
+		return {
+			ok: true,
+			status: result.status,
+			winner: result.winner || null,
+			nextPlayer: gameStatus === "ongoing" ? currentPlayer : null,
+		};
+	}
+
+	return {
+		changeTurn,
+		startGame,
+		playMove,
+	};
+})({
+	board: {
+		resetBoard: Board.resetBoard,
+		placeMark: Board.placeMark,
+		getBoard: Board.getBoard,
+	},
+	rules: { getGameStatus: GameRules.getGameStatus },
+});
+
 // ZONA DE PRUEBAS
-
-console.log("\n---------- verificar victoria ----------");
-console.log(GameRules.checkWinner(Board.getBoard()));
-
-let boardWin = ["x", "x", "x", "O", "O", null, "O", null, null];
-let boardTie = ["x", "O", "x", "O", "O", "X", "O", "X", "O"];
-let boardOngoing = ["X", null, null, null, "O", null, null, null, null];
-let boardFull = ["O", "X", "O", "O", "X", "X", "X", "O", "X"];
-
-console.log("\n---------- verificar estado del tablero: tablero con ganador ----------");
-console.log(GameRules.isTie(boardWin));
-console.log("\n---------- verificar estado del tablero: empate ----------");
-console.log(GameRules.isTie(boardTie));
-console.log("\n---------- verificar estado del tablero: tablero en juego ----------");
-console.log(GameRules.isTie(boardOngoing));
-
-console.log("\n---------- verificar juego terminado: sin ganador ----------");
-console.log(GameRules.isGameOver(boardFull));
-
-console.log("\n---------- estado del juego: tablero en juego ----------");
-console.log(GameRules.getGameStatus(boardOngoing));
-
-console.log("\n---------- estado del juego: juego ganado ----------");
-console.log(GameRules.getGameStatus(boardWin));
-
-console.log("\n---------- estado del juego: empate ----------");
-console.log(GameRules.getGameStatus(boardTie));
+console.log("------------ juego simple -------------");
+GameController.startGame("X");
+console.log(GameController.playMove(0));
+console.log(GameController.playMove(1));
+console.log(GameController.playMove(4));
+console.log(GameController.playMove(2));
+console.log(GameController.playMove(8));
+console.log(GameController.playMove(3));
