@@ -174,10 +174,20 @@ const GameController = (function (deps) {
 		};
 	}
 
+	function getCurrentPlayer() {
+		return currentPlayer;
+	}
+
+	function resetGame() {
+		startGame(currentPlayer);
+	}
+
 	return {
 		changeTurn,
 		startGame,
 		playMove,
+		getCurrentPlayer,
+		resetGame,
 	};
 })({
 	board: {
@@ -185,7 +195,9 @@ const GameController = (function (deps) {
 		placeMark: Board.placeMark,
 		getBoard: Board.getBoard,
 	},
-	rules: { getGameStatus: GameRules.getGameStatus },
+	rules: {
+		getGameStatus: GameRules.getGameStatus,
+	},
 });
 
 // ZONA DE PRUEBAS
@@ -197,3 +209,6 @@ console.log(GameController.playMove(4));
 console.log(GameController.playMove(2));
 console.log(GameController.playMove(8));
 console.log(GameController.playMove(3));
+
+const res = GameController.getCurrentPlayer();
+console.log(res);
