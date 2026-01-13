@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="description" content="Play Tic-Tac-Toe online. A classic two-player game built as part of The Odin Project curriculum." />
+		<title>Tic-Tac-Toe | The Odin Project</title>
+		<link rel="stylesheet" href="./css/style.css" />
+	</head>
+	<body>
+		<main class="game-container">
+			<section class="game-setup">
+				<form class="setup-form" id="setup-form">
+					<div class="form-field">
+						<label for="player1-name" class="form-label">Player 1 (X)</label>
+						<input 
+							type="text" 
+							id="player1-name" 
+							name="player1-name"
+							class="form-input" 
+							placeholder="Enter player name..." 
+							required
+						/>
+					</div>
+					<div class="form-field">
+						<label for="player2-name" class="form-label">Player 2 (O)</label>
+						<input 
+							type="text" 
+							id="player2-name" 
+							name="player2-name"
+							class="form-input" 
+							placeholder="Enter player name..." 
+							required
+						/>
+					</div>
+					<button type="submit" class="btn btn-primary" id="start-game-btn">
+						Start Game
+					</button>
+				</form>
+			</section>
+
+			<section class="game-board">
+                <p id="game-status">Ready?</p>
+                <div class="board-grid">
+                    <button type="button" class="cell-btn" value="0"></button>
+                    <button type="button" class="cell-btn" value="1"></button>
+                    <button type="button" class="cell-btn" value="2"></button>
+                    <button type="button" class="cell-btn" value="3"></button>
+                    <button type="button" class="cell-btn" value="4"></button>
+                    <button type="button" class="cell-btn" value="5"></button>
+                    <button type="button" class="cell-btn" value="6"></button>
+                    <button type="button" class="cell-btn" value="7"></button>
+                    <button type="button" class="cell-btn" value="8"></button>
+                </div>
+                <div class="board-controls">
+                    <button type="button" class="back-btn btn-secondary" id="back-btn">Back</button>
+                    <button type="button" class="reset-btn btn-secondary" id="reset-btn">Reset</button>
+                </div>
+            </section>
+		</main>
+
+		<script src="./js/script.js"></script>
+	</body>
+</html>
