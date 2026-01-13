@@ -123,14 +123,22 @@ const GameRules = (function () {
 })();
 
 const GameController = (function (deps) {
+	let gamePlayers = [];
 	let currentPlayer = null;
 	let gameStatus = null;
 
-	function startGame(initialPlayer) {
-		if (initialPlayer !== "X" && initialPlayer !== "O") {
-			currentPlayer = "X";
+	function startGame({ players, startingPlayer }) {
+		if (!Array.isArray(players) || players.length !== 2) {
+			throw new Error("startGame requires exactly two players");
+		}
+
+		gamePlayers = players;
+		if (startingPlayer === "X" || startingPlayer === "O") {
+			currentPlayer = gamePlayers.find(
+				(player) => player.getMark() === startingPlayer
+			);
 		} else {
-			currentPlayer = initialPlayer;
+			currentPlayer = gamePlayers[0];
 		}
 
 		deps.board.resetBoard();
@@ -138,7 +146,7 @@ const GameController = (function (deps) {
 	}
 
 	function changeTurn() {
-		currentPlayer = currentPlayer === "X" ? "O" : "X";
+		currentPlayer = currentPlayer === gamePlayers[0] ? gamePlayers[1] : gamePlayers[0];
 		return currentPlayer;
 	}
 
@@ -150,7 +158,7 @@ const GameController = (function (deps) {
 			};
 		}
 
-		const placed = deps.board.placeMark(index, currentPlayer);
+		const placed = deps.board.placeMark(index, currentPlayer.getMark());
 		if (!placed) {
 			return {
 				ok: false,
@@ -170,16 +178,16 @@ const GameController = (function (deps) {
 			ok: true,
 			status: result.status,
 			winner: result.winner || null,
-			nextPlayer: gameStatus === "ongoing" ? currentPlayer : null,
+			nextPlayer: result.status === "ongoing" ? currentPlayer.getMark() : null,
 		};
 	}
 
 	function getCurrentPlayer() {
-		return currentPlayer;
+		return currentPlayer.getMark();
 	}
 
 	function resetGame() {
-		startGame(currentPlayer);
+		startGame({ players: gamePlayers });
 	}
 
 	return {
@@ -225,18 +233,15 @@ function Player(playerName, playerMark, playerType) {
 }
 
 // ZONA DE PRUEBAS
-console.log("------------ juego simple -------------");
-GameController.startGame("X");
-console.log(GameController.playMove(0));
-console.log(GameController.playMove(1));
-console.log(GameController.playMove(4));
-console.log(GameController.playMove(2));
-console.log(GameController.playMove(8));
-console.log(GameController.playMove(3));
-
 console.log("------------ creación de un jugador válido -------------");
 const player1 = Player("G", "X", "human");
-console.log(player1.isHuman());
-console.log(player1.getMark());
-console.log(player1.getName());
+const player2 = Player("V", "O", "human");
 
+GameController.startGame({ players: [player1, player2], startingPlayer: "X" });
+console.log(GameController.playMove(0));
+console.log(GameController.playMove(3));
+console.log(GameController.playMove(1));
+console.log(GameController.playMove(4));
+console.log(GameController.playMove(7));
+console.log(GameController.playMove(5));
+console.log(GameController.playMove(6));
