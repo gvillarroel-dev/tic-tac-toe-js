@@ -200,6 +200,30 @@ const GameController = (function (deps) {
 	},
 });
 
+function Player(playerName, playerMark, playerType) {
+	const name = playerName;
+	const mark = playerMark;
+	const type = playerType;
+
+	function getName() {
+		return name;
+	}
+
+	function getMark() {
+		return mark;
+	}
+
+	function isHuman() {
+		return type === "human";
+	}
+
+	return {
+		getName,
+		getMark,
+		isHuman,
+	};
+}
+
 // ZONA DE PRUEBAS
 console.log("------------ juego simple -------------");
 GameController.startGame("X");
@@ -210,5 +234,9 @@ console.log(GameController.playMove(2));
 console.log(GameController.playMove(8));
 console.log(GameController.playMove(3));
 
-const res = GameController.getCurrentPlayer();
-console.log(res);
+console.log("------------ creación de un jugador válido -------------");
+const player1 = Player("G", "X", "human");
+console.log(player1.isHuman());
+console.log(player1.getMark());
+console.log(player1.getName());
+
