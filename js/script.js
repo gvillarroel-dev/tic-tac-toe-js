@@ -188,6 +188,10 @@ const GameController = (function (deps) {
 		return currentPlayer.getMark();
 	}
 
+	function getGameState() {
+		return gameStatus;
+	}
+
 	function resetGame() {
 		startGame({ players: gamePlayers });
 	}
@@ -197,6 +201,7 @@ const GameController = (function (deps) {
 		startGame,
 		playMove,
 		getCurrentPlayer,
+		getGameState,
 		resetGame,
 	};
 })({
@@ -237,6 +242,8 @@ function Player(playerName, playerMark, playerType) {
 const DisplayController = (function () {
 	const gameContainer = document.querySelector(".game-container");
 	const setupSection = document.querySelector(".game-setup");
+	let boardSection = null;
+	let boardStatusText = null;
 
 	function init() {
 		const form = document.querySelector("#setup-form");
@@ -261,14 +268,18 @@ const DisplayController = (function () {
 		boardRender();
 		bindCellEvents();
 		updateStatus("Game started!");
+
+		boardSection = document.querySelector(".game-board");
+		boardStatusText = document.querySelector("#game-status");
 	}
 
 	function boardRender() {
-		const boardSection = document.createElement("section");
+		boardSection = document.createElement("section");
 		boardSection.className = "game-board";
 
-		const statusText = document.createElement("p");
-		statusText.id = "game-status";
+		boardStatusText = document.createElement("p");
+		boardStatusText.id = "game-status";
+		boardStatusText.textContent = "Game Started!";
 
 		const board = document.createElement("div");
 		board.className = "board-grid";
@@ -287,16 +298,18 @@ const DisplayController = (function () {
 		backBtn.className = "btn-secondary";
 		backBtn.id = "back-btn";
 		backBtn.textContent = "Back";
+		backBtn.addEventListener("click", showSetupScreen);
 
 		const resetBtn = document.createElement("button");
 		resetBtn.className = "btn-secondary";
 		resetBtn.id = "reset-btn";
 		resetBtn.textContent = "Reset";
+		resetBtn.addEventListener("click", resetGame);
 
 		boardControls.appendChild(backBtn);
 		boardControls.appendChild(resetBtn);
 
-		boardSection.appendChild(statusText);
+		boardSection.appendChild(boardStatusText);
 		boardSection.appendChild(board);
 		boardSection.appendChild(boardControls);
 
@@ -324,9 +337,8 @@ const DisplayController = (function () {
 	}
 
 	function updateStatus(status) {
-		const statusText = document.querySelector("#game-status");
-		if (statusText) {
-			statusText.textContent = status;
+		if (boardStatusText) {
+			boardStatusText.textContent = status;
 		}
 	}
 
@@ -337,6 +349,23 @@ const DisplayController = (function () {
 		cells.forEach((cell, index) => {
 			cell.textContent = board[index] ?? "";
 		});
+	}
+
+	function showSetupScreen() {
+		gameContainer.removeChild(boardSection);
+		gameContainer.appendChild(setupSection);
+	}
+
+	function resetGame() {
+		const statusGame = GameController.getGameState();
+		if (statusGame !== "ongoing") {
+			GameController.resetGame();
+			showSetupScreen();
+		} else {
+			GameController.resetGame();
+			renderBoardState();
+			updateStatus("Game Started!");
+		}
 	}
 
 	init();
