@@ -260,6 +260,7 @@ const DisplayController = (function () {
 		gameContainer.removeChild(setupSection);
 		boardRender();
 		bindCellEvents();
+		updateStatus("Game started!");
 	}
 
 	function boardRender() {
@@ -300,6 +301,42 @@ const DisplayController = (function () {
 		boardSection.appendChild(boardControls);
 
 		gameContainer.appendChild(boardSection);
+	}
+
+	function bindCellEvents() {
+		const cells = document.querySelectorAll(".cell-btn");
+
+		cells.forEach((cell) => {
+			cell.addEventListener("click", () => {
+				const result = GameController.playMove(cell.dataset.index);
+				if (!result.ok) return;
+				renderBoardState();
+
+				if (result.status === "ongoing") {
+					updateStatus(`Turn of ${result.nextPlayer}`);
+				} else {
+					updateStatus(
+						result.winner ? `${result.winner} win` : "It's a Tie"
+					);
+				}
+			});
+		});
+	}
+
+	function updateStatus(status) {
+		const statusText = document.querySelector("#game-status");
+		if (statusText) {
+			statusText.textContent = status;
+		}
+	}
+
+	function renderBoardState() {
+		const board = Board.getBoard();
+		const cells = document.querySelectorAll(".cell-btn");
+
+		cells.forEach((cell, index) => {
+			cell.textContent = board[index] ?? "";
+		});
 	}
 
 	init();
