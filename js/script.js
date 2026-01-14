@@ -258,7 +258,48 @@ const DisplayController = (function () {
 		GameController.startGame({ players });
 
 		gameContainer.removeChild(setupSection);
-		updateStatus("Game started!");
+		boardRender();
+		bindCellEvents();
+	}
+
+	function boardRender() {
+		const boardSection = document.createElement("section");
+		boardSection.className = "game-board";
+
+		const statusText = document.createElement("p");
+		statusText.id = "game-status";
+
+		const board = document.createElement("div");
+		board.className = "board-grid";
+
+		for (let i = 0; i < 9; i++) {
+			const cellBtn = document.createElement("button");
+			cellBtn.className = "cell-btn";
+			cellBtn.dataset.index = i;
+			board.appendChild(cellBtn);
+		}
+
+		const boardControls = document.createElement("div");
+		boardControls.className = "board-controls";
+
+		const backBtn = document.createElement("button");
+		backBtn.className = "btn-secondary";
+		backBtn.id = "back-btn";
+		backBtn.textContent = "Back";
+
+		const resetBtn = document.createElement("button");
+		resetBtn.className = "btn-secondary";
+		resetBtn.id = "reset-btn";
+		resetBtn.textContent = "Reset";
+
+		boardControls.appendChild(backBtn);
+		boardControls.appendChild(resetBtn);
+
+		boardSection.appendChild(statusText);
+		boardSection.appendChild(board);
+		boardSection.appendChild(boardControls);
+
+		gameContainer.appendChild(boardSection);
 	}
 
 	init();
