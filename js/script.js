@@ -324,7 +324,7 @@ const DisplayController = (function () {
 		GameController.startGame({ players });
 
 		gameContainer.removeChild(setupSection);
-		boardRender();
+		renderBoard();
 		bindCellEvents();
 		updateStatus("Game started!");
 
@@ -332,7 +332,7 @@ const DisplayController = (function () {
 		boardStatusText = document.querySelector("#game-status");
 	}
 
-	function boardRender() {
+	function renderBoard() {
 		boardSection = document.createElement("section");
 		boardSection.className = "game-board";
 
@@ -383,15 +383,50 @@ const DisplayController = (function () {
 				const result = GameController.playMove(cell.dataset.index);
 				if (!result.ok) return;
 				renderBoardState();
-
-				if (result.state.status === "ongoing") {
-					updateStatus(`Turn of ${result.state.nextPlayer}`);
-				} else if (result.state.status === "win") {
-					updateStatus(`${result.state.winner} wins!`);
-				} else {
-					updateStatus("It's a Tie!");
-				}
+				handleGameState(result.state);
 			});
+		});
+	}
+
+	function handleGameState(state) {
+		switch (state.phase) {
+			case "turn": {
+				updateStatus(`Turn of ${state.nextPlayer}`);
+				break;
+			}
+
+			case "round-end": {
+				if(state.winner) {
+					updateStatus(`${state.winner} wins the round - Turn of ${state.nextPlayer}`);
+				} else {
+					updateStatus("Round Tied");
+				}
+
+				setTimeout(() => {
+					renderBoardState();
+					updateStatus(`Round ${state.roundsPlayed + 1} - Turn of ${state.nextPlayer}`);
+				}, 900)
+				break;
+			}
+			case "match-end": {
+				if(state.winner) {
+					updateStatus(`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`);
+				} else {
+					updateStatus(`Match tied | X: ${state.score.X} - O: ${state.score.O}`);
+				}
+
+				disableBoard();
+				break;
+			}
+			default:
+				console.warn(`Unknown game phase: ${state.phase}`);
+		}
+	}
+
+	function disableBoard() {
+		const cells = document.querySelectorAll(".cell-btn");
+		cells.forEach((cell) => {
+			cell.disabled = true;
 		});
 	}
 
@@ -407,6 +442,7 @@ const DisplayController = (function () {
 
 		cells.forEach((cell, index) => {
 			cell.textContent = board[index] ?? "";
+			cell.disabled = false;
 		});
 	}
 
@@ -416,6 +452,8 @@ const DisplayController = (function () {
 		boardStatusText = null;
 		gameContainer.appendChild(setupSection);
 	}
+
+	function showBoardScreen() {}
 
 	function resetGame() {
 		const result = GameController.resetGame();
@@ -428,6 +466,8 @@ const DisplayController = (function () {
 			showSetupScreen();
 		}
 	}
+
+	function backToSetup() {}
 
 	init();
 })();
