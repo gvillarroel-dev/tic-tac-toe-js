@@ -146,7 +146,8 @@ const GameController = (function (deps) {
 	}
 
 	function changeTurn() {
-		currentPlayer = currentPlayer === gamePlayers[0] ? gamePlayers[1] : gamePlayers[0];
+		currentPlayer =
+			currentPlayer === gamePlayers[0] ? gamePlayers[1] : gamePlayers[0];
 		return currentPlayer;
 	}
 
@@ -178,7 +179,8 @@ const GameController = (function (deps) {
 			ok: true,
 			status: result.status,
 			winner: result.winner || null,
-			nextPlayer: result.status === "ongoing" ? currentPlayer.getMark() : null,
+			nextPlayer:
+				result.status === "ongoing" ? currentPlayer.getMark() : null,
 		};
 	}
 
@@ -232,16 +234,32 @@ function Player(playerName, playerMark, playerType) {
 	};
 }
 
-// ZONA DE PRUEBAS
-console.log("------------ creación de un jugador válido -------------");
-const player1 = Player("G", "X", "human");
-const player2 = Player("V", "O", "human");
+const DisplayController = (function () {
+	const gameContainer = document.querySelector(".game-container");
+	const setupSection = document.querySelector(".game-setup");
 
-GameController.startGame({ players: [player1, player2], startingPlayer: "X" });
-console.log(GameController.playMove(0));
-console.log(GameController.playMove(3));
-console.log(GameController.playMove(1));
-console.log(GameController.playMove(4));
-console.log(GameController.playMove(7));
-console.log(GameController.playMove(5));
-console.log(GameController.playMove(6));
+	function init() {
+		const form = document.querySelector("#setup-form");
+		form.addEventListener("submit", handleStartGame);
+
+		gameContainer.appendChild(setupSection);
+	}
+
+	function handleStartGame(event) {
+		event.preventDefault();
+
+		const player1Name = document.querySelector("#player1-name").value;
+		const player2Name = document.querySelector("#player2-name").value;
+
+		const players = [
+			Player(player1Name, "X", "human"),
+			Player(player2Name, "O", "human"),
+		];
+		GameController.startGame({ players });
+
+		gameContainer.removeChild(setupSection);
+		updateStatus("Game started!");
+	}
+
+	init();
+})();
