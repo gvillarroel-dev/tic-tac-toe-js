@@ -143,6 +143,10 @@ const GameController = (function (deps) {
 
 		deps.board.resetBoard();
 		gameStatus = "ongoing";
+		return {
+			status: gameStatus,
+			currentPlayerMark: currentPlayer.getMark(),
+		};
 	}
 
 	function changeTurn() {
@@ -177,10 +181,14 @@ const GameController = (function (deps) {
 
 		return {
 			ok: true,
-			status: result.status,
-			winner: result.winner || null,
-			nextPlayer:
-				result.status === "ongoing" ? currentPlayer.getMark() : null,
+			state: {
+				status: result.status,
+				nextPlayer:
+					result.status === "ongoing"
+						? currentPlayer.getMark()
+						: null,
+				winner: result.winner || null,
+			},
 		};
 	}
 
@@ -188,20 +196,29 @@ const GameController = (function (deps) {
 		return currentPlayer.getMark();
 	}
 
-	function getGameState() {
-		return gameStatus;
+	function endGame() {
+		gamePlayers = [];
+		currentPlayer = null;
+		gameStatus = null;
 	}
 
 	function resetGame() {
-		startGame({ players: gamePlayers });
+		if (gameStatus === "ongoing") {
+			startGame({ players: gamePlayers });
+			return {
+				action: "restart",
+				currentPlayer: currentPlayer.getMark(),
+			};
+		} else {
+			endGame();
+			return { action: "back-to-setup" };
+		}
 	}
 
 	return {
-		changeTurn,
 		startGame,
 		playMove,
 		getCurrentPlayer,
-		getGameState,
 		resetGame,
 	};
 })({
@@ -325,12 +342,12 @@ const DisplayController = (function () {
 				if (!result.ok) return;
 				renderBoardState();
 
-				if (result.status === "ongoing") {
-					updateStatus(`Turn of ${result.nextPlayer}`);
+				if (result.state.status === "ongoing") {
+					updateStatus(`Turn of ${result.state.nextPlayer}`);
+				} else if (result.state.status === "win") {
+					updateStatus(`${result.state.winner} wins!`);
 				} else {
-					updateStatus(
-						result.winner ? `${result.winner} win` : "It's a Tie"
-					);
+					updateStatus("It's a Tie!");
 				}
 			});
 		});
@@ -353,18 +370,20 @@ const DisplayController = (function () {
 
 	function showSetupScreen() {
 		gameContainer.removeChild(boardSection);
+		boardSection = null;
+		boardStatusText = null;
 		gameContainer.appendChild(setupSection);
 	}
 
 	function resetGame() {
-		const statusGame = GameController.getGameState();
-		if (statusGame !== "ongoing") {
-			GameController.resetGame();
-			showSetupScreen();
-		} else {
-			GameController.resetGame();
+		const result = GameController.resetGame();
+		if (result.action === "restart") {
 			renderBoardState();
-			updateStatus("Game Started!");
+			updateStatus(`Turn of ${result.currentPlayer}`);
+		}
+
+		if (result.action === "back-to-setup") {
+			showSetupScreen();
 		}
 	}
 
