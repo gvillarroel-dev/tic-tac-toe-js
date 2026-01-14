@@ -126,8 +126,11 @@ const GameController = (function (deps) {
 	let gamePlayers = [];
 	let currentPlayer = null;
 	let gameStatus = null;
+	let roundsPlayed = 0;
+	const MAX_ROUNDS = 3;
+	let score = { X: 0, O: 0 };
 
-	function startGame({ players, startingPlayer }) {
+	function startGame({ players, startingPlayer, MAX_ROUNDS = 3 }) {
 		if (!Array.isArray(players) || players.length !== 2) {
 			throw new Error("startGame requires exactly two players");
 		}
@@ -142,7 +145,11 @@ const GameController = (function (deps) {
 		}
 
 		deps.board.resetBoard();
+		roundsPlayed = 0;
+		score.X = 0;
+		score.O = 0;
 		gameStatus = "ongoing";
+
 		return {
 			status: gameStatus,
 			currentPlayerMark: currentPlayer.getMark(),
@@ -173,21 +180,56 @@ const GameController = (function (deps) {
 
 		const board = deps.board.getBoard();
 		const result = deps.rules.getGameStatus(board);
+
+		// turno normal
 		if (result.status === "ongoing") {
 			changeTurn();
+			return {
+				ok: true,
+				state: {
+					phase: "turn",
+					nextPlayer: currentPlayer.getMark(),
+				},
+			};
+		}
+
+		// fin de ronda
+		roundsPlayed++;
+
+		if (result.status === "win") {
+			score[result.winner]++;
+		}
+
+		if (roundsPlayed === MAX_ROUNDS) {
+			gameStatus = "finished";
+			return {
+				ok: true,
+				state: {
+					phase: "match-end",
+					winner: result.winner || null,
+					score: { ...score },
+				},
+			};
+		}
+
+		// nueva ronda
+		deps.board.resetBoard();
+		if (result.status === "win") {
+			currentPlayer = gamePlayers.find(
+				(player) => player.getMark() === result.winner
+			);
 		} else {
-			gameStatus = result.status;
+			changeTurn();
 		}
 
 		return {
 			ok: true,
 			state: {
-				status: result.status,
-				nextPlayer:
-					result.status === "ongoing"
-						? currentPlayer.getMark()
-						: null,
+				phase: "round-end",
+				roundResult: result.status,
 				winner: result.winner || null,
+				roundsPlayed,
+				nextPlayer: currentPlayer.getMark(),
 			},
 		};
 	}
