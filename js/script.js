@@ -151,8 +151,7 @@ const GameController = (function (deps) {
 	};
 
 	function changeTurn() {
-		currentPlayer =
-			currentPlayer === gamePlayers[0] ? gamePlayers[1] : gamePlayers[0];
+		currentPlayer = currentPlayer === players[0] ? players[1] : players[0];
 		return currentPlayer;
 	}
 
@@ -362,124 +361,145 @@ function Bot(name, mark) {
 	};
 }
 
+// UI elements and Display Controller
+const UIElements = (function () {
+	function createBoard() {
+		const section = document.createElement("section");
+		section.className = "game-board";
+
+		const statusText = document.createElement("p");
+		statusText.id = "game-status";
+		statusText.textContent = "Game Started!";
+
+		const grid = document.createElement("div");
+		grid.className = "board-grid";
+
+		for (let i = 0; i < 9; i++) {
+			const cellBtn = document.createElement("button");
+			cellBtn.className = "cell-btn";
+			cellBtn.dataset.index = i;
+			grid.appendChild(cellBtn);
+		}
+
+		const controls = document.createElement("div");
+		controls.className = "board-controls";
+
+		const backBtn = document.createElement("button");
+		backBtn.className = "btn-secondary";
+		backBtn.id = "back-btn";
+		backBtn.textContent = "Back";
+
+		const resetBtn = document.createElement("button");
+		resetBtn.className = "btn-secondary";
+		resetBtn.id = "reset-btn";
+		resetBtn.textContent = "Reset";
+
+		controls.appendChild(backBtn);
+		controls.appendChild(resetBtn);
+
+		section.appendChild(statusText);
+		section.appendChild(grid);
+		section.appendChild(controls);
+
+		return {
+			section,
+			statusText,
+			grid,
+			backBtn,
+			resetBtn,
+		};
+	}
+
+	return { createBoard };
+})();
+
 const DisplayController = (function () {
 	const gameContainer = document.querySelector(".game-container");
 	const setupSection = document.querySelector(".game-setup");
 	const singleplayerBtn = document.querySelector("#singleplayer-btn");
 	const multiplayerBtn = document.querySelector("#multiplayer-btn");
 
-	let boardSection = null;
-	let boardStatusText = null;
+	let boardElements = null;
 
 	function init() {
-		singleplayerBtn.addEventListener("click", start("singleplayer"));
-		multiplayerBtn.addEventListener("click", start("multiplayer"));
+		singleplayerBtn.addEventListener("click", () =>
+			startGame("singleplayer")
+		);
+		multiplayerBtn.addEventListener("click", () =>
+			startGame("multiplayer")
+		);
 	}
 
-	function start(mode) {
+	function startGame(mode) {
 		const result = GameController.startGame(mode);
 
 		gameContainer.removeChild(setupSection);
-		renderBoard();
+
+		boardElements = UIElements.createBoard();
+		gameContainer.appendChild(boardElements.section);
+
+		bindBoardEvents();
 		renderBoardState();
-		bindCellEvents();
 		updateStatus(`Turn of ${result.currentPlayer}`);
-
-		boardSection = document.querySelector(".game-board");
-		boardStatusText = document.querySelector("#game-status");
 	}
 
-	function renderBoard() {
-		boardSection = document.createElement("section");
-		boardSection.className = "game-board";
-
-		boardStatusText = document.createElement("p");
-		boardStatusText.id = "game-status";
-		boardStatusText.textContent = "Game Started!";
-
-		const board = document.createElement("div");
-		board.className = "board-grid";
-
-		for (let i = 0; i < 9; i++) {
-			const cellBtn = document.createElement("button");
-			cellBtn.className = "cell-btn";
-			cellBtn.dataset.index = i;
-			board.appendChild(cellBtn);
-		}
-
-		const boardControls = document.createElement("div");
-		boardControls.className = "board-controls";
-
-		const backBtn = document.createElement("button");
-		backBtn.className = "btn-secondary";
-		backBtn.id = "back-btn";
-		backBtn.textContent = "Back";
-		backBtn.addEventListener("click", showSetupScreen);
-
-		const resetBtn = document.createElement("button");
-		resetBtn.className = "btn-secondary";
-		resetBtn.id = "reset-btn";
-		resetBtn.textContent = "Reset";
-		resetBtn.addEventListener("click", resetGame);
-
-		boardControls.appendChild(backBtn);
-		boardControls.appendChild(resetBtn);
-
-		boardSection.appendChild(boardStatusText);
-		boardSection.appendChild(board);
-		boardSection.appendChild(boardControls);
-
-		gameContainer.appendChild(boardSection);
-	}
-
-	function bindCellEvents() {
-		const cells = document.querySelectorAll(".cell-btn");
+	function bindBoardEvents() {
+		const cells = boardElements.grid.querySelectorAll(".cell-btn");
 
 		cells.forEach((cell) => {
-			cell.addEventListener("click", () => {
-				const result = GameController.playMove(cell.dataset.index);
-				if (!result.ok) return;
-				renderBoardState();
-				handleGameState(result.state);
-			});
+			cell.addEventListener("click", () =>
+				handleCellClick(parseInt(cell.dataset.index))
+			);
 		});
+
+		boardElements.backBtn.addEventListener("click", showSetupScreen);
+		boardElements.resetBtn.addEventListener("click", handleReset);
+	}
+
+	function handleCellClick(index) {
+		const result = GameController.playMove(index);
+		if (!result.ok) return;
+
+		renderBoardState();
+		handleGameState(result.state);
 	}
 
 	function handleGameState(state) {
 		switch (state.phase) {
 			case "turn": {
 				updateStatus(`Turn of ${state.nextPlayer}`);
+
+				if (state.shouldBotPlay) {
+					setTimeout(() => {
+						const botResult = GameController.playBotMove();
+						if (botResult.ok) {
+							renderBoardState();
+							handleGameState(botResult.state);
+						}
+					}, 500);
+				}
 				break;
 			}
 
 			case "round-end": {
 				if (state.winner) {
-					updateStatus(
-						`${state.winner} wins the round - Turn of ${state.nextPlayer}`
-					);
+					updateStatus(`${state.winner} wins the round!`);
 				} else {
-					updateStatus("Round Tied");
+					updateStatus("Round Tied!");
 				}
 
 				setTimeout(() => {
 					renderBoardState();
-					updateStatus(
-						`Round ${state.roundsPlayed + 1} - Turn of ${
-							state.nextPlayer
-						}`
-					);
+					updateStatus(`Round ${state.roundsPlayed + 1} - Turn of ${state.nextPlayer}`);
 				}, 900);
 				break;
 			}
+
 			case "match-end": {
 				if (state.winner) {
-					updateStatus(
-						`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`
-					);
+					updateStatus(`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`);
 				} else {
-					updateStatus(
-						`Match tied | X: ${state.score.X} - O: ${state.score.O}`
-					);
+					updateStatus(`Match tied | X: ${state.score.X} - O: ${state.score.O}`);
 				}
 
 				disableBoard();
@@ -491,21 +511,22 @@ const DisplayController = (function () {
 	}
 
 	function disableBoard() {
-		const cells = document.querySelectorAll(".cell-btn");
+		const cells = boardElements.grid.querySelectorAll(".cell-btn");
+		
 		cells.forEach((cell) => {
 			cell.disabled = true;
 		});
 	}
 
 	function updateStatus(status) {
-		if (boardStatusText) {
-			boardStatusText.textContent = status;
+		if (boardElements && boardElements.statusText) {
+			boardElements.statusText.textContent = status;
 		}
 	}
 
 	function renderBoardState() {
 		const board = Board.getBoard();
-		const cells = document.querySelectorAll(".cell-btn");
+		const cells = boardElements.grid.querySelectorAll(".cell-btn");
 
 		cells.forEach((cell, index) => {
 			cell.textContent = board[index] ?? "";
@@ -514,23 +535,28 @@ const DisplayController = (function () {
 	}
 
 	function showSetupScreen() {
-		gameContainer.removeChild(boardSection);
-		boardSection = null;
-		boardStatusText = null;
+		if (boardElements && boardElements.section) {
+			gameContainer.removeChild(boardElements.section);
+			boardElements = null;
+		}
+
 		gameContainer.appendChild(setupSection);
 	}
 
-	function resetGame() {
+	function handleReset() {
 		const result = GameController.resetGame();
+
 		if (result.action === "restart") {
+			const restartResult = GameController.startGame(result.mode);
 			renderBoardState();
-			updateStatus(`Turn of ${result.currentPlayer}`);
+			updateStatus(`Turn of ${restartResult.currentPlayer}`);
 		}
 
 		if (result.action === "back-to-setup") {
 			showSetupScreen();
 		}
 	}
+
 
 	init();
 })();
