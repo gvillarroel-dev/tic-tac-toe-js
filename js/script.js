@@ -1,36 +1,34 @@
 const Board = (function () {
-	let board = Array(9).fill(null);
+	let cells = Array(9).fill(null);
 
-	// helpers
 	function isValidIndex(index) {
-		return index >= 0 && index < board.length;
+		return index >= 0 && index < cells.length;
 	}
 
 	function isEmptyCell(index) {
-		return board[index] === null;
+		return cells[index] === null;
 	}
 
-	// internal functions
 	function getBoard() {
-		return [...board];
+		return [...cells];
 	}
 
 	function placeMark(index, mark) {
 		if (!isValidIndex(index)) return false;
 		if (!isEmptyCell(index)) return false;
 
-		board[index] = mark;
+		cells[index] = mark;
 		return true;
 	}
 
-	function resetBoard() {
-		board = Array(9).fill(null);
+	function reset() {
+		cells = Array(9).fill(null);
 	}
 
 	function getEmptyCells() {
 		const emptyCells = [];
-		for (let i = 0; i < board.length; i++) {
-			if (board[i] === null) {
+		for (let i = 0; i < cells.length; i++) {
+			if (cells[i] === null) {
 				emptyCells.push(i);
 			}
 		}
@@ -40,13 +38,13 @@ const Board = (function () {
 	return {
 		getBoard,
 		placeMark,
-		resetBoard,
+		reset,
 		getEmptyCells,
 	};
 })();
 
 const GameRules = (function () {
-	const winningCombinations = [
+	const WIN_PATTERNS = [
 		[0, 1, 2],
 		[3, 4, 5],
 		[6, 7, 8],
@@ -58,7 +56,7 @@ const GameRules = (function () {
 	];
 
 	function checkWinner(board) {
-		for (let combo of winningCombinations) {
+		for (let combo of WIN_PATTERNS) {
 			const [a, b, c] = combo;
 			if (board[a] && board[a] === board[b] && board[a] === board[c]) {
 				return board[a];
@@ -69,29 +67,15 @@ const GameRules = (function () {
 
 	function isTie(board) {
 		const winner = checkWinner(board);
+		if (winner) return false;
 
-		let isBoardFull = true;
 		for (const cell of board) {
 			if (cell === null) {
-				isBoardFull = false;
 				return false;
 			}
 		}
 
-		if (!winner && isBoardFull) {
-			return true;
-		}
-
-		return false;
-	}
-
-	function isGameOver(board) {
-		const winner = checkWinner(board);
-		const tie = isTie(board);
-		if (winner || tie) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 
 	function getGameStatus(board) {
@@ -117,44 +101,54 @@ const GameRules = (function () {
 	return {
 		checkWinner,
 		isTie,
-		isGameOver,
 		getGameStatus,
 	};
 })();
 
 const GameController = (function (deps) {
-	let gamePlayers = [];
+	const GAME_STATUS = {
+		NOT_STARTED: "not_started",
+		ONGOING: "ongoing",
+		FINISHED: "finished",
+	};
+
+	let players = [];
 	let currentPlayer = null;
-	let gameStatus = null;
+	let mode = null;
+	let gameStatus = GAME_STATUS.NOT_STARTED;
+
 	let roundsPlayed = 0;
 	const MAX_ROUNDS = 3;
 	let score = { X: 0, O: 0 };
 
-	function startGame({ players, startingPlayer, MAX_ROUNDS = 3 }) {
-		if (!Array.isArray(players) || players.length !== 2) {
-			throw new Error("startGame requires exactly two players");
+	function createPlayers(selectedMode) {
+		if (selectedMode === "singleplayer") {
+			return [Player("Human", "X"), Bot("Bot", "O")];
 		}
 
-		gamePlayers = players;
-		if (startingPlayer === "X" || startingPlayer === "O") {
-			currentPlayer = gamePlayers.find(
-				(player) => player.getMark() === startingPlayer
-			);
-		} else {
-			currentPlayer = gamePlayers[0];
+		return [Player("Player 1", "X"), Player("Player 2", "O")];
+	}
+
+	const startGame = (selectedMode) => {
+		if (gameStatus === GAME_STATUS.ONGOING) {
+			throw new Error("Game already in progress");
 		}
 
-		deps.board.resetBoard();
+		players = createPlayers(selectedMode);
+		currentPlayer = players[0];
+		deps.board.reset();
+
 		roundsPlayed = 0;
-		score.X = 0;
-		score.O = 0;
-		gameStatus = "ongoing";
+		score = { X: 0, O: 0 };
+		gameStatus = GAME_STATUS.ONGOING;
+		mode = selectedMode;
 
 		return {
 			status: gameStatus,
-			currentPlayerMark: currentPlayer.getMark(),
+			currentPlayer: getCurrentPlayer(),
+			mode,
 		};
-	}
+	};
 
 	function changeTurn() {
 		currentPlayer =
@@ -162,15 +156,54 @@ const GameController = (function (deps) {
 		return currentPlayer;
 	}
 
-	function playMove(index) {
-		if (gameStatus !== "ongoing") {
+	function handleRoundEnd(roundResult) {
+		if (roundResult.status === "win") {
+			score[roundResult.winner]++;
+		}
+
+		roundsPlayed++;
+
+		if (roundsPlayed === MAX_ROUNDS) {
+			gameStatus = GAME_STATUS.FINISHED;
+
+			const finalWinner =
+				score.X > score.O ? "X" : score.O > score.X ? "O" : null;
+
 			return {
-				ok: false,
-				reason: "game-over",
+				phase: "match-end",
+				winner: finalWinner,
+				score: { ...score },
 			};
 		}
 
-		const placed = deps.board.placeMark(index, currentPlayer.getMark());
+		deps.board.reset();
+
+		if (roundResult.status === "win") {
+			currentPlayer = players.find(
+				(player) => player.getMark() === roundResult.winner
+			);
+		} else {
+			changeTurn();
+		}
+
+		return {
+			phase: "round-end",
+			roundResult: roundResult.status,
+			winner: roundResult.winner || null,
+			roundsPlayed,
+			nextPlayer: currentPlayer.getMark(),
+		};
+	}
+
+	function playMove(index) {
+		if (gameStatus !== GAME_STATUS.ONGOING) {
+			return {
+				ok: false,
+				reason: "game-not-active",
+			};
+		}
+
+		const placed = deps.board.placeMark(index, getCurrentPlayer());
 		if (!placed) {
 			return {
 				ok: false,
@@ -181,91 +214,107 @@ const GameController = (function (deps) {
 		const board = deps.board.getBoard();
 		const result = deps.rules.getGameStatus(board);
 
-		// turno normal
-		if (result.status === "ongoing") {
-			changeTurn();
+		if (result.status !== "ongoing") {
 			return {
-				ok: true,
-				state: {
-					phase: "turn",
-					nextPlayer: currentPlayer.getMark(),
-				},
+				ok: false,
+				state: handleRoundEnd(result),
 			};
 		}
 
-		// fin de ronda
-		roundsPlayed++;
-
-		if (result.status === "win") {
-			score[result.winner]++;
-		}
-
-		if (roundsPlayed === MAX_ROUNDS) {
-			gameStatus = "finished";
-			return {
-				ok: true,
-				state: {
-					phase: "match-end",
-					winner: result.winner || null,
-					score: { ...score },
-				},
-			};
-		}
-
-		// nueva ronda
-		deps.board.resetBoard();
-		if (result.status === "win") {
-			currentPlayer = gamePlayers.find(
-				(player) => player.getMark() === result.winner
-			);
-		} else {
-			changeTurn();
-		}
+		changeTurn();
 
 		return {
 			ok: true,
 			state: {
-				phase: "round-end",
-				roundResult: result.status,
-				winner: result.winner || null,
-				roundsPlayed,
-				nextPlayer: currentPlayer.getMark(),
+				phase: "turn",
+				nextPlayer: getCurrentPlayer(),
+				shouldBotPlay: currentPlayer.isBot(),
+			},
+		};
+	}
+
+	function playBotMove() {
+		if (!currentPlayer || !currentPlayer.isBot()) {
+			return {
+				ok: false,
+				reason: "not-bot-turn",
+			};
+		}
+
+		const board = deps.board.getBoard();
+		const botMove = currentPlayer.chooseMove(board);
+
+		if (botMove === null) {
+			return {
+				ok: false,
+				reason: "not-moves-available",
+			};
+		}
+
+		const placed = deps.board.placeMark(botMove, getCurrentPlayer());
+		if (!placed) {
+			return {
+				ok: false,
+				reason: "invalid-bot-move",
+			};
+		}
+
+		const boardAfterBot = deps.board.getBoard();
+		const result = deps.rules.getGameStatus(boardAfterBot);
+
+		if (result.status !== "ongoing") {
+			return {
+				ok: true,
+				state: handleRoundEnd(result),
+			};
+		}
+
+		changeTurn();
+
+		return {
+			ok: true,
+			state: {
+				phase: "turn",
+				nextPlayer: getCurrentPlayer(),
+				shouldBotPlay: false,
 			},
 		};
 	}
 
 	function getCurrentPlayer() {
-		return currentPlayer.getMark();
+		return currentPlayer ? currentPlayer.getMark() : null;
 	}
 
 	function endGame() {
 		gamePlayers = [];
 		currentPlayer = null;
-		gameStatus = null;
+		gameStatus = GAME_STATUS.NOT_STARTED;
+		mode = null;
 	}
 
 	function resetGame() {
-		if (gameStatus === "ongoing") {
-			startGame({ players: gamePlayers });
+		if (gameStatus === GAME_STATUS.ONGOING) {
+			const previousMode = mode;
+			endGame();
 			return {
 				action: "restart",
-				currentPlayer: currentPlayer.getMark(),
+				mode: previousMode,
 			};
-		} else {
-			endGame();
-			return { action: "back-to-setup" };
 		}
+
+		endGame();
+		return { action: "back-to-setup" };
 	}
 
 	return {
 		startGame,
 		playMove,
-		getCurrentPlayer,
+		playBotMove,
 		resetGame,
 	};
 })({
 	board: {
-		resetBoard: Board.resetBoard,
+		reset: Board.reset,
 		placeMark: Board.placeMark,
 		getBoard: Board.getBoard,
 	},
@@ -274,59 +323,67 @@ const GameController = (function (deps) {
 	},
 });
 
-function Player(playerName, playerMark, playerType) {
-	const name = playerName;
-	const mark = playerMark;
-	const type = playerType;
+function Player(name, mark) {
+	const getName = () => name;
+	const getMark = () => mark;
+	const isBot = () => false;
 
-	function getName() {
-		return name;
+	return {
+		getName,
+		getMark,
+		isBot,
+	};
+}
+
+function Bot(name, mark) {
+	const getName = () => name;
+	const getMark = () => mark;
+	const isBot = () => true;
+
+	function getAvailableMoves(board) {
+		return board
+			.map((cell, index) => (cell === null ? index : null))
+			.filter((index) => index !== null);
 	}
 
-	function getMark() {
-		return mark;
-	}
+	function chooseMove(board) {
+		const availableMoves = getAvailableMoves(board);
+		if (availableMoves.length === 0) return null;
 
-	function isHuman() {
-		return type === "human";
+		const randomIndex = Math.floor(Math.random() * availableMoves.length);
+		return availableMoves[randomIndex];
 	}
 
 	return {
 		getName,
 		getMark,
-		isHuman,
+		isBot,
+		chooseMove,
 	};
 }
 
 const DisplayController = (function () {
 	const gameContainer = document.querySelector(".game-container");
 	const setupSection = document.querySelector(".game-setup");
+	const singleplayerBtn = document.querySelector("#singleplayer-btn");
+	const multiplayerBtn = document.querySelector("#multiplayer-btn");
+
 	let boardSection = null;
 	let boardStatusText = null;
 
 	function init() {
-		const form = document.querySelector("#setup-form");
-		form.addEventListener("submit", handleStartGame);
-
-		gameContainer.appendChild(setupSection);
+		singleplayerBtn.addEventListener("click", start("singleplayer"));
+		multiplayerBtn.addEventListener("click", start("multiplayer"));
 	}
 
-	function handleStartGame(event) {
-		event.preventDefault();
-
-		const player1Name = document.querySelector("#player1-name").value;
-		const player2Name = document.querySelector("#player2-name").value;
-
-		const players = [
-			Player(player1Name, "X", "human"),
-			Player(player2Name, "O", "human"),
-		];
-		GameController.startGame({ players });
+	function start(mode) {
+		const result = GameController.startGame(mode);
 
 		gameContainer.removeChild(setupSection);
 		renderBoard();
+		renderBoardState();
 		bindCellEvents();
-		updateStatus("Game started!");
+		updateStatus(`Turn of ${result.currentPlayer}`);
 
 		boardSection = document.querySelector(".game-board");
 		boardStatusText = document.querySelector("#game-status");
@@ -396,23 +453,33 @@ const DisplayController = (function () {
 			}
 
 			case "round-end": {
-				if(state.winner) {
-					updateStatus(`${state.winner} wins the round - Turn of ${state.nextPlayer}`);
+				if (state.winner) {
+					updateStatus(
+						`${state.winner} wins the round - Turn of ${state.nextPlayer}`
+					);
 				} else {
 					updateStatus("Round Tied");
 				}
 
 				setTimeout(() => {
 					renderBoardState();
-					updateStatus(`Round ${state.roundsPlayed + 1} - Turn of ${state.nextPlayer}`);
-				}, 900)
+					updateStatus(
+						`Round ${state.roundsPlayed + 1} - Turn of ${
+							state.nextPlayer
+						}`
+					);
+				}, 900);
 				break;
 			}
 			case "match-end": {
-				if(state.winner) {
-					updateStatus(`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`);
+				if (state.winner) {
+					updateStatus(
+						`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`
+					);
 				} else {
-					updateStatus(`Match tied | X: ${state.score.X} - O: ${state.score.O}`);
+					updateStatus(
+						`Match tied | X: ${state.score.X} - O: ${state.score.O}`
+					);
 				}
 
 				disableBoard();
@@ -453,8 +520,6 @@ const DisplayController = (function () {
 		gameContainer.appendChild(setupSection);
 	}
 
-	function showBoardScreen() {}
-
 	function resetGame() {
 		const result = GameController.resetGame();
 		if (result.action === "restart") {
@@ -466,8 +531,6 @@ const DisplayController = (function () {
 			showSetupScreen();
 		}
 	}
-
-	function backToSetup() {}
 
 	init();
 })();
