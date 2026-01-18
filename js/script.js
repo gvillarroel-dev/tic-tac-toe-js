@@ -215,7 +215,7 @@ const GameController = (function (deps) {
 
 		if (result.status !== "ongoing") {
 			return {
-				ok: false,
+				ok: true,
 				state: handleRoundEnd(result),
 			};
 		}
@@ -285,7 +285,7 @@ const GameController = (function (deps) {
 	}
 
 	function endGame() {
-		gamePlayers = [];
+		players = [];
 		currentPlayer = null;
 		gameStatus = GAME_STATUS.NOT_STARTED;
 		mode = null;
@@ -456,7 +456,11 @@ const DisplayController = (function () {
 		boardElements.resetBtn.addEventListener("click", handleReset);
 	}
 
+	let isProcessing = false;
+
 	function handleCellClick(index) {
+		if(isProcessing) return;
+
 		const result = GameController.playMove(index);
 		if (!result.ok) return;
 
@@ -470,12 +474,18 @@ const DisplayController = (function () {
 				updateStatus(`Turn of ${state.nextPlayer}`);
 
 				if (state.shouldBotPlay) {
+					isProcessing = true;
+					disableBoard();
+
 					setTimeout(() => {
 						const botResult = GameController.playBotMove();
 						if (botResult.ok) {
 							renderBoardState();
 							handleGameState(botResult.state);
 						}
+
+						isProcessing = false;
+						enableBoard()
 					}, 500);
 				}
 				break;
@@ -488,9 +498,15 @@ const DisplayController = (function () {
 					updateStatus("Round Tied!");
 				}
 
+				isProcessing = true;
+				disableBoard();
+
 				setTimeout(() => {
 					renderBoardState();
 					updateStatus(`Round ${state.roundsPlayed + 1} - Turn of ${state.nextPlayer}`);
+
+					isProcessing = false;
+					enableBoard()
 				}, 900);
 				break;
 			}
@@ -511,11 +527,23 @@ const DisplayController = (function () {
 	}
 
 	function disableBoard() {
+		if (!boardElements || !boardElements.grid) return;
 		const cells = boardElements.grid.querySelectorAll(".cell-btn");
 		
 		cells.forEach((cell) => {
 			cell.disabled = true;
 		});
+	}
+
+	function enableBoard() {
+		if(!boardElements || !boardElements.grid) return;
+
+		const board = Board.getBoard();
+		const cells = boardElements.grid.querySelectorAll(".cell-btn");
+
+		cells.forEach((cell, index) => {
+			cell.disabled = board[index] !== null;
+		})
 	}
 
 	function updateStatus(status) {
@@ -530,7 +558,7 @@ const DisplayController = (function () {
 
 		cells.forEach((cell, index) => {
 			cell.textContent = board[index] ?? "";
-			cell.disabled = false;
+			cell.disabled = board[index] !== null;
 		});
 	}
 
