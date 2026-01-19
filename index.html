@@ -10,35 +10,20 @@
 	<body>
 		<main class="game-container">
 			<section class="game-setup">
-				<form class="setup-form" id="setup-form">
-					<div class="form-field">
-						<label for="player1-name" class="form-label">Player 1 (X)</label>
-						<input 
-							type="text" 
-							id="player1-name" 
-							name="player1-name"
-							class="form-input" 
-							placeholder="Enter player name..." 
-							required
-						/>
-					</div>
-					<div class="form-field">
-						<label for="player2-name" class="form-label">Player 2 (O)</label>
-						<input 
-							type="text" 
-							id="player2-name" 
-							name="player2-name"
-							class="form-input" 
-							placeholder="Enter player name..." 
-							required
-						/>
-					</div>
-					<button type="submit" class="btn btn-primary" id="start-game-btn">
-						Start Game
-					</button>
-				</form>
+				<button class="btn btn-primary" id="singleplayer-btn">
+					Singleplayer
+				</button>
+				<button class="btn btn-primary" id="multiplayer-btn">
+					Multiplayer
+				</button>
 			</section>
 		</main>
+		<footer class="footer">
+			<p class="footer-text">
+				Coded and Designed by <a href="https://github.com/gvillarroel-dev" target="_blank" rel="noopener noreferrer" class="footer-link">Villarroel Giuliana</a> |
+				A project from <a href="https://theodinproject.com" target="_blank" rel="noopener noreferrer" class="footer-link">The Odin Project</a>.
+			</p>
+		</footer>
 
 		<script src="./js/script.js"></script>
 	</body>
