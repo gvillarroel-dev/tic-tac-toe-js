@@ -179,7 +179,7 @@ const GameController = (function (deps) {
 
 		if (roundResult.status === "win") {
 			currentPlayer = players.find(
-				(player) => player.getMark() === roundResult.winner
+				(player) => player.getMark() === roundResult.winner,
 			);
 		} else {
 			changeTurn();
@@ -191,6 +191,7 @@ const GameController = (function (deps) {
 			winner: roundResult.winner || null,
 			roundsPlayed,
 			nextPlayer: currentPlayer.getMark(),
+			shouldBotPlay: currentPlayer.isBot(),
 		};
 	}
 
@@ -423,10 +424,10 @@ const DisplayController = (function () {
 
 	function init() {
 		singleplayerBtn.addEventListener("click", () =>
-			startGame("singleplayer")
+			startGame("singleplayer"),
 		);
 		multiplayerBtn.addEventListener("click", () =>
-			startGame("multiplayer")
+			startGame("multiplayer"),
 		);
 	}
 
@@ -448,7 +449,7 @@ const DisplayController = (function () {
 
 		cells.forEach((cell) => {
 			cell.addEventListener("click", () =>
-				handleCellClick(parseInt(cell.dataset.index))
+				handleCellClick(parseInt(cell.dataset.index)),
 			);
 		});
 
@@ -459,7 +460,7 @@ const DisplayController = (function () {
 	let isProcessing = false;
 
 	function handleCellClick(index) {
-		if(isProcessing) return;
+		if (isProcessing) return;
 
 		const result = GameController.playMove(index);
 		if (!result.ok) return;
@@ -485,7 +486,7 @@ const DisplayController = (function () {
 						}
 
 						isProcessing = false;
-						enableBoard()
+						enableBoard();
 					}, 500);
 				}
 				break;
@@ -505,17 +506,33 @@ const DisplayController = (function () {
 					renderBoardState();
 					updateStatus(`Round ${state.roundsPlayed + 1} - Turn of ${state.nextPlayer}`);
 
-					isProcessing = false;
-					enableBoard()
+					if (state.shouldBotPlay) {
+						setTimeout(() => {
+							const botResult = GameController.playBotMove();
+							if (botResult.ok) {
+								renderBoardState();
+								handleGameState(botResult.state);
+							}
+							isProcessing = false;
+							enableBoard();
+						}, 500);
+					} else {
+						isProcessing = false;
+						enableBoard();
+					}
 				}, 900);
 				break;
 			}
 
 			case "match-end": {
 				if (state.winner) {
-					updateStatus(`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`);
+					updateStatus(
+						`${state.winner} wins the match | X: ${state.score.X} - O: ${state.score.O}`,
+					);
 				} else {
-					updateStatus(`Match tied | X: ${state.score.X} - O: ${state.score.O}`);
+					updateStatus(
+						`Match tied | X: ${state.score.X} - O: ${state.score.O}`,
+					);
 				}
 
 				disableBoard();
@@ -529,21 +546,21 @@ const DisplayController = (function () {
 	function disableBoard() {
 		if (!boardElements || !boardElements.grid) return;
 		const cells = boardElements.grid.querySelectorAll(".cell-btn");
-		
+
 		cells.forEach((cell) => {
 			cell.disabled = true;
 		});
 	}
 
 	function enableBoard() {
-		if(!boardElements || !boardElements.grid) return;
+		if (!boardElements || !boardElements.grid) return;
 
 		const board = Board.getBoard();
 		const cells = boardElements.grid.querySelectorAll(".cell-btn");
 
 		cells.forEach((cell, index) => {
 			cell.disabled = board[index] !== null;
-		})
+		});
 	}
 
 	function updateStatus(status) {
@@ -584,7 +601,6 @@ const DisplayController = (function () {
 			showSetupScreen();
 		}
 	}
-
 
 	init();
 })();
